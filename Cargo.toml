@@ -1,0 +1,8 @@
+[package]
+name = "glutin-example"
+version = "0.1.0"
+authors = ["Benjamin Lindley <benjameslindley@gmail.com>"]
+
+[dependencies]
+glutin = "*"
+gl = "*"
