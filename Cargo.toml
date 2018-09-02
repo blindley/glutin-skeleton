@@ -1,5 +1,5 @@
 [package]
-name = "glutin-example"
+name = "glutin-skeleton"
 version = "0.1.0"
 authors = ["Benjamin Lindley <benjameslindley@gmail.com>"]
 
