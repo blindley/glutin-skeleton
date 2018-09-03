@@ -1,7 +1,7 @@
 use std;
-use super::glutin;
-use super::gl;
-use super::WindowInitData;
+use glutin;
+use gl;
+use WindowInitData;
 
 pub fn window_init() -> Result<WindowInitData, Box<std::error::Error>> {
     Ok(WindowInitData{
@@ -13,8 +13,6 @@ pub fn window_init() -> Result<WindowInitData, Box<std::error::Error>> {
 }
 
 pub struct AppData {
-    // add members to this struct that you want to be available for 
-    // the lifetime of the application
 }
 
 pub fn app_init() -> Result<AppData, Box<std::error::Error>> {
@@ -30,6 +28,10 @@ pub fn app_frame(data : &mut AppData) {
     unsafe {
         gl::Clear(gl::COLOR_BUFFER_BIT);
     }
+}
+
+#[allow(unused_variables)]
+pub fn app_shutdown(data : &mut AppData) {
 }
 
 #[allow(unused_variables)]

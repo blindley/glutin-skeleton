@@ -1,7 +1,9 @@
 extern crate glutin;
 extern crate gl;
+extern crate simple_error;
 
 mod application;
+mod gl_helpers;
 
 use glutin::dpi::LogicalSize;
 use glutin::GlContext;
@@ -65,6 +67,8 @@ fn main() {
 
         gl_window.swap_buffers().unwrap();
     }
+
+    application::app_shutdown(&mut app_data);
 }
 
 pub struct WindowInitData {

@@ -6,3 +6,4 @@ authors = ["Benjamin Lindley <benjameslindley@gmail.com>"]
 [dependencies]
 glutin = "*"
 gl = "*"
+simple-error = "*"
