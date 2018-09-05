@@ -34,6 +34,12 @@ impl ProgramBuilder {
         self
     }
 
+    pub fn code(&mut self, code : ShaderCode) -> &mut ProgramBuilder {
+        self.vertex_shader_code = Some(code.vertex);
+        self.fragment_shader_code = Some(code.fragment);
+        self
+    }
+
     pub fn build(&self) -> SimpleResult<GLuint> {
         let mut shaders = Vec::new();
         if let Some(ref code) = self.vertex_shader_code {
@@ -76,7 +82,15 @@ pub fn compile_shader(code : &str, shader_type : ShaderType) -> SimpleResult<GLu
             gl::GetShaderInfoLog(shader, loglen, std::ptr::null_mut(),
                 buffer.as_ptr() as *mut GLchar);
             buffer.set_len(loglen as usize - 1);
-            let message = String::from_utf8(buffer).unwrap();
+            let log = String::from_utf8(buffer).unwrap();
+            
+            let shader_name = match shader_type {
+                ShaderType::Vertex => "vertex",
+                ShaderType::Fragment => "fragment"
+            };
+
+            let message = format!("error in {} shader : {}", shader_name, log);
+
             gl::DeleteShader(shader);
             Err(SimpleError::new(message))
         } else {
@@ -152,4 +166,53 @@ pub fn create_vertex_array(buffer : GLuint, components : &[GLint]) -> SimpleResu
 
         Ok(vertex_array)
     }
+}
+
+pub struct ShaderCode {
+    vertex : String,
+    fragment : String,
+}
+
+pub fn load_and_parse_shaders(path : &str)
+-> Result<ShaderCode, Box<std::error::Error>> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use gl_helpers::ShaderType;
+
+    let mut code = ShaderCode {
+        vertex : String::new(),
+        fragment : String::new()
+    };
+
+    let mut shader_type_opt : Option<ShaderType> = None;
+
+    let file = File::open(path)?;
+    for line in BufReader::new(file).lines() {
+        let line = line?;
+        if line.contains("#shader") {
+            shader_type_opt = 
+                if line.contains("vertex") {
+                    Some(ShaderType::Vertex)
+                } else if line.contains("fragment") {
+                    Some(ShaderType::Fragment)
+                } else {
+                    None
+                };
+        } else {
+            match shader_type_opt {
+                Some(shader_type) => {
+                    let shader =
+                        match shader_type {
+                            ShaderType::Vertex => &mut code.vertex,
+                            ShaderType::Fragment => &mut code.fragment,
+                        };
+                    shader.push_str(&line);
+                    shader.push('\n');
+                },
+                _ => (),
+            }
+        }
+    }
+
+    Ok(code)
 }
