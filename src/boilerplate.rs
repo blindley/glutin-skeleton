@@ -12,8 +12,14 @@ pub struct WindowInitData {
     pub default_resize_handler : bool,
 }
 
+pub struct InitData {
+    pub window_init_data : WindowInitData,
+    pub app_data : super::AppData,
+}
+
 pub fn execute() -> Result<(),Box<std::error::Error>> {
-    let window_init_data = super::window_init()?;
+    let InitData { window_init_data, mut app_data } =
+        super::window_init()?;
 
     let mut ev_loop = glutin::EventsLoop::new();
     let window = {
@@ -33,7 +39,7 @@ pub fn execute() -> Result<(),Box<std::error::Error>> {
         gl::load_with(|sym| gl_window.get_proc_address(sym) as *const _);
     }
 
-    let mut app_data = super::init()?;
+    super::gl_init(&mut app_data)?;
 
     let start_time = std::time::Instant::now();
 

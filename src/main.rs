@@ -4,7 +4,7 @@ extern crate simple_error;
 
 mod gl_helpers;
 mod boilerplate;
-use boilerplate::WindowInitData;
+use boilerplate::{InitData, WindowInitData};
 
 fn main() {
     match boilerplate::execute() {
@@ -18,12 +18,15 @@ fn main() {
 #[allow(unused_imports)]
 use gl::types::{GLuint, GLint, GLchar, GLsizei};
 
-pub fn window_init() -> Result<WindowInitData, Box<std::error::Error>> {
-    Ok(boilerplate::WindowInitData{
-        title : String::from("nice window title"),
-        window_size : (800, 800),
-        default_close_handler : true,
-        default_resize_handler : true,
+pub fn window_init() -> Result<InitData, Box<std::error::Error>> {
+    Ok(InitData {
+        window_init_data : WindowInitData{
+            title : String::from("nice window title"),
+            window_size : (800, 800),
+            default_close_handler : true,
+            default_resize_handler : true,
+        },
+        app_data : AppData {}
     })
 }
 
@@ -31,11 +34,12 @@ pub fn window_init() -> Result<WindowInitData, Box<std::error::Error>> {
 pub struct AppData {
 }
 
-pub fn init() -> Result<AppData, Box<std::error::Error>> {
+#[allow(unused_variables)]
+pub fn gl_init(app_data : &mut AppData) -> Result<(), Box<std::error::Error>> {
     unsafe {
         gl::ClearColor(0.2, 0.2, 0.4, 1.0);
-        Ok(AppData{})
     }
+    Ok(())
 }
 
 #[allow(unused_variables)]
