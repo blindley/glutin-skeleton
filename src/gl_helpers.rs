@@ -2,70 +2,82 @@
 
 use std;
 use gl;
-use simple_error::{SimpleError, SimpleResult};
 
 #[allow(unused_imports)]
 use gl::types::{GLuint, GLint, GLsizei, GLchar, GLenum, GLsizeiptr, GLvoid};
 
+type BoxResult<T> = std::result::Result<T, Box<std::error::Error>>;
+pub type Error = simple_error::SimpleError;
+pub type Result<T> = std::result::Result<T, Error>;
+
+macro_rules! assert_or_error {
+    ($cond:expr) => (
+        if !$cond {
+            let msg = format!("assertion failed: {}", stringify!($cond));
+            Err(Error::new(msg))
+        } else {
+            Ok(())
+        }
+    );
+    ($cond:expr, $($arg:tt)+) => (
+        if !$cond {
+            let msg = format!($($arg)+);
+            Err(Error::new(msg))
+        } else {
+            Ok(())
+        }
+    );
+}
+
 pub struct ProgramBuilder {
-    vertex_shader_code : Option<String>,
-    fragment_shader_code : Option<String>,
+    code: ShaderCode,
 }
 
 impl ProgramBuilder {
     pub fn new() -> ProgramBuilder {
         ProgramBuilder {
-            vertex_shader_code : None,
-            fragment_shader_code : None,
+            code: ShaderCode::new(),
         }
     }
 
     pub fn vertex_shader_code<T>(&mut self, code : T) -> &mut ProgramBuilder
         where T : Into<String>
     {
-        self.vertex_shader_code = Some(code.into());
+        self.code[ShaderType::Vertex] = Some(code.into());
         self
     }
 
     pub fn fragment_shader_code<T>(&mut self, code : T) -> &mut ProgramBuilder
         where T : Into<String>
     {
-        self.fragment_shader_code = Some(code.into());
+        self.code[ShaderType::Fragment] = Some(code.into());
         self
     }
 
-    pub fn code(&mut self, code : ShaderCode) -> &mut ProgramBuilder {
-        self.vertex_shader_code = Some(code.vertex);
-        self.fragment_shader_code = Some(code.fragment);
-        self
-    }
-
-    pub fn build(&self) -> SimpleResult<GLuint> {
-        let mut shaders = Vec::new();
-        if let Some(ref code) = self.vertex_shader_code {
-            shaders.push(compile_shader(&code, ShaderType::Vertex)?);
+    pub fn code(&mut self, code : &ShaderCode) -> &mut ProgramBuilder {
+        for i in ShaderType::each().iter() {
+            if let Some(ref code) = code[*i] {
+                self.code[*i] = Some(code.clone());
+            }
         }
+        self
+    }
 
-        if let Some(ref code) = self.fragment_shader_code {
-            shaders.push(compile_shader(&code, ShaderType::Fragment)?);
+    pub fn build(&self) -> Result<GLuint> {
+        let mut shaders = Vec::new();
+        for shader_type in ShaderType::each().iter() {
+            if let Some(ref code) = self.code[*shader_type] {
+                shaders.push(compile_shader(&code, *shader_type)?);
+            }
         }
 
         create_program(&shaders, true)
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum ShaderType {
-    Vertex, Fragment,
-}
-
-pub fn compile_shader(code : &str, shader_type : ShaderType) -> SimpleResult<GLuint> {
+pub fn compile_shader(code : &str, shader_type : ShaderType) -> Result<GLuint> {
     unsafe {
-        let gl_type = match shader_type {
-            ShaderType::Vertex => gl::VERTEX_SHADER,
-            ShaderType::Fragment => gl::FRAGMENT_SHADER,
-        };
-
+        let gl_type = shader_type.as_gl_enum();
         let shader = gl::CreateShader(gl_type);
         let len = code.len() as GLint;
         let code_ptr = code.as_ptr() as *const GLchar;
@@ -84,15 +96,11 @@ pub fn compile_shader(code : &str, shader_type : ShaderType) -> SimpleResult<GLu
             buffer.set_len(loglen as usize - 1);
             let log = String::from_utf8(buffer).unwrap();
             
-            let shader_name = match shader_type {
-                ShaderType::Vertex => "vertex",
-                ShaderType::Fragment => "fragment"
-            };
-
+            let shader_name = shader_type.short_name();
             let message = format!("error in {} shader : {}", shader_name, log);
 
             gl::DeleteShader(shader);
-            Err(SimpleError::new(message))
+            Err(Error::new(message))
         } else {
             Ok(shader)
         }
@@ -100,7 +108,7 @@ pub fn compile_shader(code : &str, shader_type : ShaderType) -> SimpleResult<GLu
 }
 
 pub fn create_program(shaders : &[GLuint], delete_shaders : bool)
-    -> SimpleResult<GLuint>
+    -> Result<GLuint>
 {
     unsafe {
         let program = gl::CreateProgram();
@@ -127,26 +135,47 @@ pub fn create_program(shaders : &[GLuint], delete_shaders : bool)
             buffer.set_len(loglen as usize - 1);
             let message = String::from_utf8(buffer).unwrap();
             gl::DeleteProgram(program);
-            Err(SimpleError::new(message))
+            Err(Error::new(message))
         } else {
             Ok(program)
         }
     }
 }
 
-pub fn create_buffer<T>(data : &[T]) -> SimpleResult<GLuint> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BufferUsage {
+    StreamDraw, StreamRead, StreamCopy,
+    StaticDraw, StaticRead, StaticCopy,
+    DynamicDraw, DynamicRead, DynamicCopy,
+}
+
+pub fn create_buffer<T>(data : &[T], usage: BufferUsage) -> Result<GLuint> {
     unsafe {
         let mut buffer = std::mem::uninitialized();
         gl::GenBuffers(1, &mut buffer);
         let size = (data.len() * std::mem::size_of::<T>()) as GLsizeiptr;
         gl::BindBuffer(gl::ARRAY_BUFFER, buffer);
+
+        use self::BufferUsage::*;
+        let gl_usage = match usage {
+            StreamDraw => gl::STREAM_DRAW,
+            StreamRead => gl::STREAM_READ,
+            StreamCopy => gl::STREAM_COPY,
+            StaticDraw => gl::STATIC_DRAW,
+            StaticRead => gl::STATIC_READ,
+            StaticCopy => gl::STATIC_COPY,
+            DynamicDraw => gl::DYNAMIC_DRAW,
+            DynamicRead => gl::DYNAMIC_READ,
+            DynamicCopy => gl::DYNAMIC_COPY,
+        };
+
         gl::BufferData(gl::ARRAY_BUFFER, size, data.as_ptr() as _,
-            gl::STATIC_DRAW);
+            gl_usage);
         Ok(buffer)
     }
 }
 
-pub fn create_vertex_array(buffer : GLuint, components : &[GLint]) -> SimpleResult<GLuint> {
+pub fn create_single_buffer_vertex_array(buffer : GLuint, components : &[GLint]) -> Result<GLuint> {
     unsafe {
         let mut vertex_array = std::mem::uninitialized();
         gl::GenVertexArrays(1, &mut vertex_array);
@@ -168,51 +197,80 @@ pub fn create_vertex_array(buffer : GLuint, components : &[GLint]) -> SimpleResu
     }
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct ShaderCode {
-    vertex : String,
-    fragment : String,
+    code: [Option<String>;6],
 }
 
-pub fn load_and_parse_shaders(path : &str)
--> Result<ShaderCode, Box<std::error::Error>> {
-    use std::fs::File;
-    use std::io::{BufRead, BufReader};
-    use gl_helpers::ShaderType;
+#[derive(Debug, Clone, Copy)]
+pub enum ShaderType {
+    Vertex, Fragment, TessControl, TessEval, Geometry, Compute,
+}
 
-    let mut code = ShaderCode {
-        vertex : String::new(),
-        fragment : String::new()
-    };
+impl ShaderType {
+    pub fn each() -> [ShaderType;6] {
+        use self::ShaderType::*;
+        [Vertex, Fragment, TessControl, TessEval, Geometry, Compute,]
+    }
 
-    let mut shader_type_opt : Option<ShaderType> = None;
-
-    let file = File::open(path)?;
-    for line in BufReader::new(file).lines() {
-        let line = line?;
-        if line.contains("#shader") {
-            shader_type_opt = 
-                if line.contains("vertex") {
-                    Some(ShaderType::Vertex)
-                } else if line.contains("fragment") {
-                    Some(ShaderType::Fragment)
-                } else {
-                    None
-                };
-        } else {
-            match shader_type_opt {
-                Some(shader_type) => {
-                    let shader =
-                        match shader_type {
-                            ShaderType::Vertex => &mut code.vertex,
-                            ShaderType::Fragment => &mut code.fragment,
-                        };
-                    shader.push_str(&line);
-                    shader.push('\n');
-                },
-                _ => (),
-            }
+    pub fn as_gl_enum(self) -> u32 {
+        use self::ShaderType::*;
+        match self {
+            Vertex => gl::VERTEX_SHADER,
+            Fragment => gl::FRAGMENT_SHADER,
+            TessControl => gl::TESS_CONTROL_SHADER,
+            TessEval => gl::TESS_EVALUATION_SHADER,
+            Geometry => gl::GEOMETRY_SHADER,
+            Compute => gl::COMPUTE_SHADER,
         }
     }
 
-    Ok(code)
+    pub fn short_name(self) -> &'static str {
+        use self::ShaderType::*;
+        match self {
+            Vertex => "vertex",
+            Fragment => "fragment",
+            TessControl => "tess control",
+            TessEval => "tess eval",
+            Geometry => "geometry",
+            Compute => "compute",
+        }
+    }
+}
+
+impl ShaderCode {
+    pub fn new() -> ShaderCode {
+        ShaderCode::default()
+    }
+}
+
+impl std::ops::Index<ShaderType> for ShaderCode {
+    type Output = Option<String>;
+    fn index(&self, ty: ShaderType) -> &Option<String> {
+        &self.code[ty as usize]
+    }
+}
+
+impl std::ops::IndexMut<ShaderType> for ShaderCode {
+    fn index_mut(&mut self, ty: ShaderType) -> &mut Option<String> {
+        &mut self.code[ty as usize]
+    }
+}
+
+pub fn get_attribute_location(program: u32, name: *const std::os::raw::c_char)
+-> Result<i32> {
+    unsafe {
+        let loc = gl::GetAttribLocation(program, name);
+        assert_or_error!(loc != -1, "could not bind attribute {:?}", std::ffi::CStr::from_ptr(name))?;
+        Ok(loc)
+    }
+}
+
+pub fn get_uniform_location(program: u32, name: *const std::os::raw::c_char)
+-> Result<i32> {
+    unsafe {
+        let loc = gl::GetUniformLocation(program, name);
+        assert_or_error!(loc != -1, "could not bind uniform {:?}", std::ffi::CStr::from_ptr(name))?;
+        Ok(loc)
+    }
 }

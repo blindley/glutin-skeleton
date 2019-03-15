@@ -3,58 +3,57 @@ extern crate gl;
 extern crate simple_error;
 
 mod gl_helpers;
-mod boilerplate;
-use boilerplate::{InitData, WindowInitData};
 
-fn main() {
-    match boilerplate::execute() {
-        Err(e) => {
-            println!("Error: {}", e);
-        },
-        _ => (),
-    }
-}
+fn main() -> Result<(),Box<std::error::Error>> {
+    use glutin::GlContext;
+    let window_title = "nice window title";
+    let window_size = (800, 800);
 
-#[allow(unused_imports)]
-use gl::types::{GLuint, GLint, GLchar, GLsizei};
+    let mut ev_loop = glutin::EventsLoop::new();
+    let gl_window = {
+        let window = glutin::WindowBuilder::new()
+            .with_title(window_title)
+            .with_dimensions(window_size.into());
+        let context = glutin::ContextBuilder::new()
+            .with_vsync(true);
+        glutin::GlWindow::new(window, context, &ev_loop)?
+    };
 
-pub fn window_init() -> Result<InitData, Box<std::error::Error>> {
-    Ok(InitData {
-        window_init_data : WindowInitData{
-            title : String::from("nice window title"),
-            window_size : (800, 800),
-            default_close_handler : true,
-            default_resize_handler : true,
-        },
-        app_data : AppData {}
-    })
-}
-
-#[allow(dead_code)]
-pub struct AppData {
-}
-
-#[allow(unused_variables)]
-pub fn gl_init(app_data : &mut AppData) -> Result<(), Box<std::error::Error>> {
     unsafe {
-        gl::ClearColor(0.2, 0.2, 0.4, 1.0);
+        gl_window.make_current()?;
+        gl::load_with(|sym| gl_window.get_proc_address(sym) as *const _);
     }
+
+    // let start_time = std::time::Instant::now();
+
+    let mut running = true;
+    while running {
+        ev_loop.poll_events(|event| {
+            match event {
+                glutin::Event::WindowEvent{event, ..} => {
+                    match event {
+                        glutin::WindowEvent::CloseRequested => running = false,
+
+                        glutin::WindowEvent::Resized(logical_size) => {
+                            let dpi_factor = gl_window.get_hidpi_factor();
+                            gl_window.resize(logical_size.to_physical(dpi_factor));
+                            unsafe {
+                                let w = logical_size.width as i32;
+                                let h = logical_size.height as i32;
+                                gl::Viewport(0, 0, w, h);
+                            }
+                        },
+
+                        _ => (),
+                    }
+                },
+
+                _ => (),
+            }
+        });
+
+        gl_window.swap_buffers()?;
+    }
+
     Ok(())
 }
-
-#[allow(unused_variables)]
-pub fn frame(total_elapsed : std::time::Duration, data : &mut AppData) {
-    unsafe {
-        gl::Clear(gl::COLOR_BUFFER_BIT);
-    }
-}
-
-#[allow(unused_variables)]
-pub fn shutdown(data : &mut AppData) {
-}
-
-#[allow(unused_variables)]
-pub fn handle_events(event : glutin::Event, keep_running : &mut bool,
-data : &mut AppData) {
-}
-
