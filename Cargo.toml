@@ -2,8 +2,10 @@
 name = "glutin-skeleton"
 version = "0.1.0"
 authors = ["Benjamin Lindley <benjameslindley@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 glutin = "*"
 gl = "*"
-simple-error = "*"
+
+multitext = {git = "https://github.com/blindley/multitext.git"}
