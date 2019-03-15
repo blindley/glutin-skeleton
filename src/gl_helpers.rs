@@ -174,11 +174,8 @@ impl BufferUsage {
 pub fn create_buffer<T>(data : &[T], usage: BufferUsage) -> Result<u32> {
     unsafe {
         let mut buffer = std::mem::uninitialized();
-        gl::GenBuffers(1, &mut buffer);
-        // named_buffer_data(buffer, data, usage);
-        gl::BindBuffer(gl::ARRAY_BUFFER, buffer);
-        let size = (data.len() * std::mem::size_of::<T>()) as isize;
-        gl::BufferData(gl::ARRAY_BUFFER, size, data.as_ptr() as _, usage.as_gl_enum());
+        gl::CreateBuffers(1, &mut buffer);
+        named_buffer_data(buffer, data, usage);
         Ok(buffer)
     }
 }

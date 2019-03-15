@@ -55,11 +55,7 @@ fn main() -> Result<(),Box<std::error::Error>> {
         gl_helpers::create_buffer(&vertices, gl_helpers::BufferUsage::StaticDraw)?
     };
 
-    println!("buffer = {}", buffer);
-
     let vao = gl_helpers::create_single_buffer_vertex_array(buffer, &[2,3])?;
-
-    println!("{:?}", (program, buffer, vao));
 
     // let start_time = std::time::Instant::now();
 
@@ -102,10 +98,9 @@ fn main() -> Result<(),Box<std::error::Error>> {
     Ok(())
 }
 
-extern "system" fn gl_debug_callback(source: gl::types::GLenum, ty: gl::types::GLenum, id: u32,
-    severity: gl::types::GLenum, length: i32,
-    message: *const std::os::raw::c_char,
-    user_param: *mut std::os::raw::c_void)
+extern "system" fn gl_debug_callback(
+    source: gl::types::GLenum, ty: gl::types::GLenum, id: u32, severity: gl::types::GLenum, length: i32,
+    message: *const std::os::raw::c_char, user_param: *mut std::os::raw::c_void)
 {
     let _ = (source, ty, id, severity, user_param);
 
