@@ -294,6 +294,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gl_helpers"
+version = "0.1.0"
+source = "git+https://github.com/blindley/gl_helpers.git#44cb93ff076a8cb800c89c2a139c5393260c8ad3"
+dependencies = [
+ "gl 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "gleam"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -328,7 +336,7 @@ name = "glutin-skeleton"
 version = "0.1.0"
 dependencies = [
  "cgmath 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "gl 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gl_helpers 0.1.0 (git+https://github.com/blindley/gl_helpers.git)",
  "glutin 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "multitext 0.1.0 (git+https://github.com/blindley/multitext.git)",
@@ -1099,6 +1107,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum gl 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "81457bb802910ad5b535eb48541c51830a761804aa5b7087adbc9d049aa57aca"
 "checksum gl_generator 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a0ffaf173cf76c73a73e080366bf556b4776ece104b06961766ff11449f38604"
 "checksum gl_generator 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7a795170cbd85b5a7baa58d6d7525cae6a03e486859860c220f7ebbbdd379d0a"
+"checksum gl_helpers 0.1.0 (git+https://github.com/blindley/gl_helpers.git)" = "<none>"
 "checksum gleam 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0d41e7ac812597988fdae31c9baec3c6d35cadb8ad9ab88a9bf9c0f119ed66c2"
 "checksum glutin 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)" = "535c6eda58adbb227604b2db10a022ffd6339d7ea3e970f338e7d98aeb24fcc3"
 "checksum image 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)" = "52fb0666a1273dac46f9725aa4859bcd5595fc3554cf3495051b4de8db745e7d"

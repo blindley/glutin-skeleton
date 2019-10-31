@@ -6,8 +6,8 @@ edition = "2018"
 
 [dependencies]
 glutin = "0.19"
-gl = "*"
 cgmath = "0.16"
 image = "0.21"
 
 multitext = {git = "https://github.com/blindley/multitext.git"}
+gl_helpers = {git = "https://github.com/blindley/gl_helpers.git"}

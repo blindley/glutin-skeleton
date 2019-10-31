@@ -1,9 +1,9 @@
 use glutin;
-use gl;
+use gl_helpers;
 use cgmath;
 use image;
 
-mod gl_helpers;
+use gl_helpers::gl;
 
 macro_rules! cstr {
     ($e:expr) => {
