@@ -5,6 +5,8 @@ use image;
 
 use gl_helpers::gl;
 
+mod simple_text;
+
 macro_rules! cstr {
     ($e:expr) => {
         concat!($e, "\0").as_ptr() as *const std::os::raw::c_char
@@ -112,19 +114,24 @@ fn main() -> Result<(),Box<dyn std::error::Error>> {
     let up_vector = cgmath::Vector3::new(0.0, 1.0, 0.0);
 
     let mut last_update = std::time::Instant::now();
+    let mut fps_frame_counter = 0;
+    let mut fps_elapsed_seconds = 0.0;
+    let mut fps_text = "fps: 0".to_owned();
 
     while !data.quit {
         ev_loop.poll_events(|event| data.handle_event(event));
 
+        fps_frame_counter += 1;
         let now = std::time::Instant::now();
         let elapsed = now - last_update;
+        let elapsed_seconds = elapsed.as_millis() as f32 / 1000.0;
+        fps_elapsed_seconds += elapsed_seconds;
         last_update = now;
 
         {
             use glutin::VirtualKeyCode as Vk;
             let speed = 3.0;
             let turnspeed = cgmath::Deg(120.0);
-            let elapsed_seconds = elapsed.as_millis() as f32 / 1000.0;
             if data.keystates[Vk::W] {
                 data.player_position += data.player_move_vector * speed * elapsed_seconds;
             } else if data.keystates[Vk::S] {
@@ -168,6 +175,14 @@ fn main() -> Result<(),Box<dyn std::error::Error>> {
             gl::BindTexture(gl::TEXTURE_2D, data.texture_id);
             gl::DrawArrays(gl::TRIANGLES, 0, vertex_count);
         }
+
+        if fps_frame_counter == 100 {
+            let fps = 100.0 / fps_elapsed_seconds;
+            fps_text = format!("fps: {}", fps);
+            fps_frame_counter = 0;
+            fps_elapsed_seconds = 0.0;
+        }
+        simple_text::draw_text(&fps_text, -0.95, -0.95, 0.035, 0.035);
 
         data.gl_window.swap_buffers()?;
     }
