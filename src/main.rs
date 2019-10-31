@@ -11,7 +11,7 @@ macro_rules! cstr {
     };
 }
 
-fn main() -> Result<(),Box<std::error::Error>> {
+fn main() -> Result<(),Box<dyn std::error::Error>> {
     use glutin::GlContext;
     let window_title = "nice window title";
     let window_size = (800,800);

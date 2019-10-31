@@ -3,8 +3,8 @@
 use std;
 use gl;
 
-type BoxResult<T> = std::result::Result<T, Box<std::error::Error>>;
-pub type Error = Box<std::error::Error>;
+type BoxResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type Error = Box<dyn std::error::Error>;
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct ProgramBuilder {
@@ -90,10 +90,10 @@ pub fn compile_shader(code : &str, shader_type : ShaderType) -> Result<u32> {
         gl::ShaderSource(shader, 1, &code_ptr, &len);
         gl::CompileShader(shader);
 
-        let mut success = std::mem::uninitialized();
+        let mut success = 0;
         gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
         if success == 0 {
-            let mut loglen = std::mem::uninitialized();
+            let mut loglen = 0;
             gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut loglen);
             let buffer_len = (loglen - 1) as usize;
             let mut buffer : Vec<u8> = Vec::with_capacity(buffer_len + 1);
@@ -129,10 +129,10 @@ pub fn create_program(shaders : &[u32], delete_shaders : bool)
             }
         }
 
-        let mut success = std::mem::uninitialized();
+        let mut success = 0;
         gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
         if success == 0 {
-            let mut loglen = std::mem::uninitialized();
+            let mut loglen = 0;
             gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut loglen);
             let buffer_len = (loglen - 1) as usize;
             let mut buffer : Vec<u8> = Vec::with_capacity(buffer_len + 1);
@@ -173,7 +173,7 @@ impl BufferUsage {
 
 pub fn create_buffer<T>(data : &[T], usage: BufferUsage) -> Result<u32> {
     unsafe {
-        let mut buffer = std::mem::uninitialized();
+        let mut buffer = 0;
         gl::CreateBuffers(1, &mut buffer);
         named_buffer_data(buffer, data, usage);
         Ok(buffer)
@@ -189,7 +189,7 @@ pub fn named_buffer_data<T>(buffer: u32, data: &[T], usage: BufferUsage) {
 
 pub fn create_single_buffer_vertex_array(buffer : u32, components : &[i32]) -> Result<u32> {
     unsafe {
-        let mut vertex_array = std::mem::uninitialized();
+        let mut vertex_array = 0;
         gl::GenVertexArrays(1, &mut vertex_array);
         gl::BindVertexArray(vertex_array);
         gl::BindBuffer(gl::ARRAY_BUFFER, buffer);
