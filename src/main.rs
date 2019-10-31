@@ -57,17 +57,26 @@ fn main() -> Result<(),Box<dyn std::error::Error>> {
 
     let vertices: Vec<f32> = {
         let vertices = text_data.get("vertices").expect("no vertices found").clone();
-        vertices.split(",").map(|e| e.trim().parse().unwrap()).collect()
+        vertices.split(",").filter_map(|e|
+            match e.trim() {
+                "" => None,
+                e => Some(e.parse().unwrap())
+            }
+        ).collect()
     };
 
     let components: Vec<i32> = {
         let components = text_data.get("vertex components").expect("no vertex component data found").clone();
-        components.split(",").map(|e| e.trim().parse().unwrap()).collect()
+        components.split(",").filter_map(|e|
+            match e.trim() {
+                "" => None,
+                e => Some(e.parse().unwrap())
+            }
+        ).collect()
     };
 
     let vertex_count: i32 = (vertices.len() as i32) / components.iter().sum::<i32>();
 
-    // let vertex_object = generate_vertices();
     let buffer = gl_helpers::create_buffer(&vertices, gl_helpers::BufferUsage::StaticDraw)?;
 
     let vao = gl_helpers::create_single_buffer_vertex_array(buffer, &components)?;
