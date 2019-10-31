@@ -39,28 +39,38 @@ fn main() -> Result<(),Box<dyn std::error::Error>> {
         gl::Enable(gl::DEPTH_TEST);
     }
 
-    let program = {
-        let code = {
-            let file = std::fs::File::open("data/shader.multitext")?;
-            let file = std::io::BufReader::new(file);
-            use std::io::BufRead;
-            multitext::parse_lines(file.lines().filter_map(|r| r.ok()))?
-        };
+    let text_data = {
+        let file = std::fs::File::open("data/shader.multitext")?;
+        let file = std::io::BufReader::new(file);
+        use std::io::BufRead;
+        multitext::parse_lines(file.lines().filter_map(|r| r.ok()))?
+    };
 
-        let vcode = code.get("vertex shader").expect("no vertex shader found").clone();
-        let fcode = code.get("fragment shader").expect("no fragment shader found").clone();
+    let program = {
+        let vcode = text_data.get("vertex shader").expect("no vertex shader found").clone();
+        let fcode = text_data.get("fragment shader").expect("no fragment shader found").clone();
         gl_helpers::ProgramBuilder::new()
             .vertex_shader_code(vcode)
             .fragment_shader_code(fcode)
             .build()?
     };
 
-    let buffer = {
-        let vertices = generate_vertices();
-        gl_helpers::create_buffer(&vertices, gl_helpers::BufferUsage::StaticDraw)?
+    let vertices: Vec<f32> = {
+        let vertices = text_data.get("vertices").expect("no vertices found").clone();
+        vertices.split(",").map(|e| e.trim().parse().unwrap()).collect()
     };
 
-    let vao = gl_helpers::create_single_buffer_vertex_array(buffer, &[3,2])?;
+    let components: Vec<i32> = {
+        let components = text_data.get("vertex components").expect("no vertex component data found").clone();
+        components.split(",").map(|e| e.trim().parse().unwrap()).collect()
+    };
+
+    let vertex_count: i32 = (vertices.len() as i32) / components.iter().sum::<i32>();
+
+    // let vertex_object = generate_vertices();
+    let buffer = gl_helpers::create_buffer(&vertices, gl_helpers::BufferUsage::StaticDraw)?;
+
+    let vao = gl_helpers::create_single_buffer_vertex_array(buffer, &components)?;
 
     let uniform_mvp = gl_helpers::get_uniform_location(program, cstr!("mvp"))?;
     let uniform_texture = gl_helpers::get_uniform_location(program, cstr!("utexture"))?;
@@ -147,7 +157,7 @@ fn main() -> Result<(),Box<dyn std::error::Error>> {
             gl::ActiveTexture(gl::TEXTURE0);
             gl::Uniform1i(data.uniform_texture, 0);
             gl::BindTexture(gl::TEXTURE_2D, data.texture_id);
-            gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            gl::DrawArrays(gl::TRIANGLES, 0, vertex_count);
         }
 
         data.gl_window.swap_buffers()?;
@@ -256,47 +266,4 @@ impl std::ops::IndexMut<glutin::VirtualKeyCode> for KeyStates {
     fn index_mut(&mut self, key: glutin::VirtualKeyCode) -> &mut bool {
         &mut self.pressed[key as usize]
     }
-}
-
-fn generate_vertices() -> Vec<f32> {
-    let vmin = -0.5;
-    let vmax = 0.5;
-    let pos = [
-        [vmin, vmin, vmin,],
-        [vmin, vmin, vmax,],
-        [vmin, vmax, vmin,],
-        [vmin, vmax, vmax,],
-        [vmax, vmin, vmin,],
-        [vmax, vmin, vmax,],
-        [vmax, vmax, vmin,],
-        [vmax, vmax, vmax,],
-    ];
-
-    let pos_order = [
-        [1, 3, 7, 1, 7, 5],
-        [5, 7, 6, 5, 6, 4],
-        [4, 6, 2, 4, 2, 0],
-        [0, 2, 3, 0, 3, 1],
-        [3, 2, 6, 3, 6, 7],
-        [0, 1, 5, 0, 5, 4],
-    ];
-
-    let tex_order = [
-        [0, 1], [0, 0], [1, 0], [0, 1], [1, 0], [1, 1]
-    ];
-
-    let mut vertices: Vec<f32> = Vec::new();
-    for i in 0..6 {
-        let tx = ((i % 3) * 256) as f32;
-        let ty = ((i / 3) * 256) as f32;
-        let tx = [tx + 0.5, tx + 255.5];
-        let ty = [ty + 0.5, ty + 255.5];
-        for j in 0..6 {
-            vertices.extend(pos[pos_order[i][j]].iter());
-            vertices.push(tx[tex_order[j][0]] / 768.0);
-            vertices.push(ty[tex_order[j][1]] / 512.0);
-        }
-    }
-
-    vertices
 }
