@@ -24,11 +24,12 @@ const VERTS: [Vertex;15] = [
 ];
 
 // start/end char values
-const START: usize = '!' as usize;
-const END: usize = 'Z' as usize;
+const START_CHAR: usize = '!' as usize;
+const END_CHAR: usize = 'Z' as usize;
+const NUM_CHARS: usize = 1 + END_CHAR - START_CHAR;
 
 // use index arrays to create letters
-const LETTERS: [[i32;15];END - START + 1] = [
+const LETTERS: [[i32;15];NUM_CHARS] = [
     [4, 1, 7, 13, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],      // !
     [4, 1, 4, 2, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],        // "
     [8, 0, 12, 2, 14, 3, 5, 9, 11, 0, 0, 0, 0, 0, 0],     // #
@@ -97,7 +98,7 @@ uniform vec2 scale;
 void main() {
     float x = position.x * scale.x + offset.x;
     float y = position.y * scale.y + offset.y;
-    gl_Position = vec4(x, y, 0.0, 1.0);
+    gl_Position = vec4(x, y, -1.0, 1.0);
 }
 ";
 
@@ -109,60 +110,74 @@ void main() {
 }
 ";
 
-// Draws a string of length <len> at an <x>/<y> position on the screen, optionally with a <shadow>
-//  The screen is set up to be 0,0 at the lower left and 150,150 at the upper right for positioning
-//  by default.
-pub fn draw_text(string: &str, x: f32, y: f32, xscale: f32, yscale: f32) {
-    if string.len() <= 0 {
-        return;
-    }
+#[derive(Clone, Copy)]
+pub struct VertexArray {
+    pub buffer: u32,
+    pub vao: u32,
+    pub vcount: i32,
+}
 
-    let program = {
-        let vcode = VERTEX_SHADER_CODE;
-        let fcode = FRAGMENT_SHADER_CODE;
-        gl_helpers::ProgramBuilder::new()
-            .vertex_shader_code(vcode)
-            .fragment_shader_code(fcode)
-            .build()
-            .unwrap()
-    };
+pub struct SimpleTextContext {
+    program: u32,
+    vertex_arrays: Vec<VertexArray>,
+    offset_uniform_location: i32,
+    scale_uniform_location: i32,
+}
 
-    let offset_uniform_location = gl_helpers::get_uniform_location(program, cstr!("offset")).unwrap();
-    let scale_uniform_location = gl_helpers::get_uniform_location(program, cstr!("scale")).unwrap();
+impl SimpleTextContext {
+    pub fn new() -> SimpleTextContext {
+        let program = {
+            let vcode = VERTEX_SHADER_CODE;
+            let fcode = FRAGMENT_SHADER_CODE;
+            gl_helpers::ProgramBuilder::new()
+                .vertex_shader_code(vcode)
+                .fragment_shader_code(fcode)
+                .build()
+                .unwrap()
+        };
 
-    unsafe {
-        gl::UseProgram(program);
-        gl::Uniform2f(scale_uniform_location, xscale, yscale);
-    }
+        let offset_uniform_location = gl_helpers::get_uniform_location(program, cstr!("offset")).unwrap();
+        let scale_uniform_location = gl_helpers::get_uniform_location(program, cstr!("scale")).unwrap();
 
-    let mut x = x;
-    for c in string.chars() {
-        let temp = c.to_ascii_uppercase();
-        let temp = temp as usize;
-
-        if temp >= START && temp <= END {
-            let vcount = LETTERS[temp - START][0] as usize;
-            let vertices: Vec<f32> = LETTERS[temp - START][1..].iter().take(vcount).flat_map(
+        let mut vertex_arrays = Vec::new();
+        for i in 0..(NUM_CHARS) {
+            let vcount = LETTERS[i][0];
+            let vertices: Vec<f32> = LETTERS[i][1..].iter().take(vcount as usize).flat_map(
                 |index| VERTS[*index as usize].iter().copied()
             ).collect();
-
-            let buffer = gl_helpers::create_buffer(&vertices, gl_helpers::BufferUsage::StreamDraw).unwrap();
+            let buffer = gl_helpers::create_buffer(&vertices, gl_helpers::BufferUsage::StaticDraw).unwrap();
             let vao = gl_helpers::create_single_buffer_vertex_array(buffer, &[2]).unwrap();
-
-            unsafe {
-                gl::Uniform2f(offset_uniform_location, x, y);
-                gl::BindVertexArray(vao);
-                gl::DrawArrays(gl::LINES, 0, vcount as i32);
-
-                gl::DeleteVertexArrays(1, &vao);
-                gl::DeleteBuffers(1, &buffer);
-            }
+            vertex_arrays.push(VertexArray { buffer, vao, vcount });
         }
 
-        x += xscale * 0.675;
+        SimpleTextContext {
+            program,
+            vertex_arrays,
+            offset_uniform_location,
+            scale_uniform_location,
+        }
     }
 
-    unsafe {
-        gl::DeleteProgram(program);
+    pub fn draw_text(&self, string: &str, x: f32, y: f32, xscale: f32, yscale: f32) {
+        unsafe {
+            gl::UseProgram(self.program);
+            gl::Uniform2f(self.scale_uniform_location, xscale, yscale);
+        }
+
+        let mut x = x;
+        for c in string.chars() {
+            let index = c.to_ascii_uppercase() as usize;
+
+            if index >= START_CHAR && index <= END_CHAR {
+                let index = index - START_CHAR;
+                unsafe {
+                    gl::Uniform2f(self.offset_uniform_location, x, y);
+                    gl::BindVertexArray(self.vertex_arrays[index].vao);
+                    gl::DrawArrays(gl::LINES, 0, self.vertex_arrays[index].vcount);
+                }
+            }
+
+            x += xscale * 0.675;
+        }
     }
 }

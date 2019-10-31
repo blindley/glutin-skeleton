@@ -113,6 +113,8 @@ fn main() -> Result<(),Box<dyn std::error::Error>> {
 
     let up_vector = cgmath::Vector3::new(0.0, 1.0, 0.0);
 
+    let text_context = simple_text::SimpleTextContext::new();
+
     let mut last_update = std::time::Instant::now();
     let mut fps_frame_counter = 0;
     let mut fps_elapsed_seconds = 0.0;
@@ -182,7 +184,8 @@ fn main() -> Result<(),Box<dyn std::error::Error>> {
             fps_frame_counter = 0;
             fps_elapsed_seconds = 0.0;
         }
-        simple_text::draw_text(&fps_text, -0.95, -0.95, 0.035, 0.035);
+
+        text_context.draw_text(&fps_text, -0.95, -0.95, 0.035, 0.035);
 
         data.gl_window.swap_buffers()?;
     }
